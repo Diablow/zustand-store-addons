@@ -119,9 +119,9 @@ it('uses the store with no args', async () => {
 
 
 it('uses the store with selectors', async () => {
-  const useStore = create((set) => ({
+  const useStore = create((set, get) => ({
     count: 1,
-    inc: () => set((state) => ({ count: state.count + 1 })),
+    inc: () => set({ count: get().count + 1 }),
   }), {
     computed: {
       doubleCount() {
@@ -220,6 +220,52 @@ it('uses the store with simplified fetch and watchers', async () => {
   await findByText('doubleCount: 4');
   await findByText('total: 6');
   await findByText('More than 5');
+})
+
+it('uses the store with simplified fetch and watchers but replacing state from watcher', async () => {
+  const useStore = create((set) => ({
+    count: 1,
+    inc: () => set((state) => ({ count: state.count + 1 })),
+    moreThan5: false,
+  }), {
+    computed: {
+      doubleCount() {
+        return this.count * 2;
+      },
+      total() {
+        return this.count + this.doubleCount;
+      }
+    },
+    watchers: {
+      total(newValue: number, oldValue: number) {
+        if (newValue > 5 && oldValue <= 5) {
+          this.set({ moreThan5: true }, { replace: true })
+        }
+      }
+    },
+    settings: {
+      name: 'rudeTest',
+      logLevel: 'all'
+    }
+  })
+
+  function Counter() {
+    const [count, doubleCount, total, moreThan5, inc] = useStore('count, doubleCount, total, moreThan5, inc');
+    React.useEffect(inc, [])
+    return (
+      <div>
+        <p>count: {count}</p>
+        <p>doubleCount: {doubleCount}</p>
+        <p>total: {total}</p>
+        {moreThan5 && <p>More than 5</p>}
+      </div>
+    )
+  }
+
+  const { findByText } = render(<Counter />)
+
+  await findByText('More than 5');
+  expect(useStore.getState()).toEqual({ moreThan5: true });
 })
 
 

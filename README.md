@@ -1,4 +1,4 @@
-## Zustand Store Addons
+## Zustand Store Addons for React
 
 Create [zustand](https://github.com/react-spring/zustand) stores with the leverage of powerful features inspired by [Vue.js](https://vuejs.org/) component's state management.
 
@@ -63,7 +63,7 @@ import create from 'zustand-store-addons';
 
 const useStore = create((set, get) => ({
   count: 0,
-  increment: set({ count: get().count + 1 }),
+  increment: () => set(state => ({ count: state.count + 1 })),
 });
 
 export default AnotherCounterComponent() {
@@ -118,7 +118,7 @@ import create from 'zustand-store-addons';
 
 const useStore = create((set, get) => ({
   count: 0,
-  increment: set({ count: get().count + 1 }),
+  increment: () => set(state => ({ count: state.count + 1 })),
 }), {
   computed: {
     doubleCount: function() {
@@ -194,14 +194,18 @@ Is this better? It seems repetitive. Let's take a look at a different approach *
 
 ## Simplified fetch syntax
 
-We can use a string to list our selection separating each property with commas. It is case-sensitive, white space is ignored and uses the **shallow** function internally.
+We can list our selection using a string separating the properties with a comma between them. It is case-sensitive, white space is ignored and uses the **shallow** function internally. This works for a single or multiple properties.
 
 ```jsx
+// Single property
+const increment = useStore('increment');
+
+// Returns an array when selecting multiple properties
 const [count, increment, doubleCount, total] = useStore(
   'count, increment, doubleCount, total'
 )
 
-// or use template literals/strings if you need
+// Or use template literals/strings if you need
 const times = 'double';
 const [count, increment, doubleCount, total] = useStore(
   `count, increment, ${times}Count, total`
@@ -249,7 +253,7 @@ const log = config => (set, get, api) => config(args => {
 
 const useStore = create((set, get) => ({
   count: 0,
-  increment: set({ count: get().count + 1 }),
+  increment: () => set(state => ({ count: state.count + 1 })),
 }), {
   computed: {
     doubleCount: function() {
@@ -275,7 +279,7 @@ import create from 'zustand-store-addons';
 
 const useStore = create((set, get) => ({
   count: 0,
-  increment: set({ count: get().count + 1 }),
+  increment: () => set(state => ({ count: state.count + 1 })),
 }), {
   computed: {
     doubleCount: function() {
@@ -295,18 +299,40 @@ const useStore = create((set, get) => ({
 
 ### Frequently updated properties
 
-Sometimes there are properties that need to be updated very often and logging them constantly can be annoying and potentially fill the console view very quickly. For this cases we can pass a configuration object as a second argument to the `set` and `setState` functions to exclude the operation in the logs.
+Sometimes there are properties that need to be updated very often and logging them constantly can be annoying and potentially fill the console view very quickly. For this cases we can pass a configuration object as a second argument to the `set` and `setState` functions to exclude the operation from logs.
 
 ```jsx
-set({ tickerSeconds: 20 }, { excludeInLogs: true });
+set({ tickerSeconds: 20 }, { excludeFromLogs: true });
 
 useStore.setState({
   tickerSeconds: 20,
   foo: 'bar'
 }, {
-  excludeInLogs: true
+  excludeFromLogs: true
 });
 
+```
+
+### Overwriting state
+
+Since zustand's v3.0.0 we can pass a second argument to the `set` function to replace the state instead of merging it. This can be done in the same way in this package, but if we also need to exclude the operation from logs then the use of an object is required in order to indicate both flags
+
+```jsx
+
+// This will replace the state
+useStore.setState({
+  tickerSeconds: 20,
+  foo: 'bar'
+}, true)
+
+// This will replace the state and won't be shown in logs
+useStore.setState({
+  tickerSeconds: 20,
+  foo: 'bar'
+}, {
+  excludeFromLogs: true,
+  replace: true
+});
 ```
 
 ## Watchers (addons.watchers)
@@ -323,7 +349,7 @@ const useStore = create(
   // First argument remains the same as zustand's create function
   (set, get) => ({
     count: 0,
-    increment: set({ count: get().count + 1 }),
+    increment: () => set(state => ({ count: state.count + 1 })),
     above20: false, // <-- We add this property
   }),
   // Second argument is were you put the addons

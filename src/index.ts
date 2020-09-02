@@ -1,4 +1,4 @@
-import create, { StateCreator, State, StateSelector, EqualityChecker, SetState, GetState, Subscribe, Destroy, StoreApi } from 'zustand';
+import create, { State, StateSelector, EqualityChecker, PartialState, GetState, Subscribe, Destroy, StoreApi } from 'zustand';
 import shallow from 'zustand/shallow';
 import flow from 'lodash/flow';
 
@@ -15,8 +15,16 @@ interface IAddonsSettings {
   logLevel?: LogLevel | string
 }
 
-// type MiddlewareNodeStateCreator
-// type MiddlewareNode = <TState extends TStateRecords>() => StateCreator<TState> | (config: any) => (set: any, get: any, api: any) => any;
+interface SetStateSettings {
+  excludeInLogs?: boolean | undefined,
+  replace?: boolean | undefined
+}
+
+type SetState<T extends State> = (partial: PartialState<T>, replace?: boolean) => void;
+type SetStateAddons<T extends State> = (partial: PartialState<T>, setSettings?: SetStateSettings) => void;
+declare type StateCreator<T extends State, CustomSetState = SetState<T> | SetStateAddons<T>> = (set: CustomSetState, get: GetState<T>, api: StoreApi<T>) => T;
+
+type SetStateExtraParam = boolean | undefined | SetStateSettings;
 
 interface IAddons {
   computed?: TStateRecords,
@@ -48,11 +56,12 @@ function intersection(aArray: any[], bArray: any) {
 export interface UseStore<T extends State> {
   (): T
   <U>(selector: StateSelector<T, U> | string, equalityFn?: EqualityChecker<U>): U
-  setState: SetState<T>
+  setState: SetState<T> | SetStateAddons<T>
   getState: GetState<T>
   subscribe: Subscribe<T>
   destroy: Destroy
 }
+
 
 export default function createStore <TState extends TStateRecords>(
   stateInitializer: StateCreator<TState>,
@@ -69,23 +78,39 @@ export default function createStore <TState extends TStateRecords>(
     logLevel: addons?.settings?.logLevel ?? LogLevel.None
   }
 
+
   function attachMiddleWare(config: StateCreator<TState>) {
     return (set: SetState<TState>, get: GetState<TState>, api: StoreApi<TState>) => {
-      return config((args: any, setSettings: any) => {
+      // Overwrites set method
+      return config((args: any, setSettings: SetStateExtraParam) => {
         return setMiddleware([args, setSettings], set)
       }
       , get, api)
     };
   };
 
-  function setState(args: any, setSettings: any) {
+  // Overwrites setState method
+  function setState(args: any, setSettings: SetStateExtraParam) {
     setMiddleware([args, setSettings], _originalSetState);
   };
 
   function setMiddleware(args: any, set: any) {
+
     const [partialState, setSettings] = args;
 
-    const logOperations = (!setSettings?.excludeInLogs ?? true) && <string>_settings.logLevel !== <string>LogLevel.None;
+    let replaceState = false;
+    let excludeInLogs = false;
+
+    if (typeof setSettings !== 'undefined') {
+      if (typeof setSettings === 'boolean') {
+        replaceState = setSettings;
+      } else if (typeof setSettings === 'object') {
+        replaceState = setSettings.replace || false
+        excludeInLogs = setSettings.excludeInLogs || false
+      }
+    }
+
+    const logOperations = (!excludeInLogs ?? true) && <string>_settings.logLevel !== <string>LogLevel.None;
 
     const currentState = _api.getState();
     const changes = typeof partialState === 'function' ? partialState(currentState) : partialState;
@@ -113,7 +138,9 @@ export default function createStore <TState extends TStateRecords>(
     }
 
     const newState = { ...changes, ...updatedComputed };
-    set(newState);
+    set(newState, replaceState);
+
+
 
     for (const [propName, fn] of Object.entries(_watchers)) {
       if (Object.keys(newState).includes(propName)) {
@@ -158,17 +185,23 @@ export default function createStore <TState extends TStateRecords>(
     }
   };
 
+  function _stateCreator <TState extends State>(
+    set: SetState<TState> | SetStateAddons<TState>,
+    get: GetState<TState>,
+    api: StoreApi<TState>
+  ): TState {
+    _api = api;
+    _originalSetState = {...api}.setState;
+    _api.setState = setState;
+    return {...stateInitializer(<SetState<TState> | SetStateAddons<TState>>set, get, api)}
+  }
+
   const hook = create(
     attachMiddleWare(
       middlewareFunctions(
         addons?.middleware,
-        <TState extends State>(set: SetState<TState>, get: GetState<TState>, api: StoreApi<TState>
-      ) => {
-        _api = api;
-        _originalSetState = {...api}.setState;
-        _api.setState = setState;
-        return {...stateInitializer(set, get, api)}
-      })
+        _stateCreator
+      )
     )
   );
 

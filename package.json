@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -25,6 +25,10 @@
     "hooks": {
       "pre-commit": "tsdx lint"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Diablow/zustand-store-addons.git"
   },
   "prettier": {
     "printWidth": 80,
