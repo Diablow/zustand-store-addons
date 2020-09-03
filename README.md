@@ -1,6 +1,8 @@
 ## Zustand Store Addons for React
 
-Create [zustand](https://github.com/react-spring/zustand) stores with the leverage of powerful features inspired by [Vue.js](https://vuejs.org/) component's state management.
+Create zustand stores with the leverage of powerful features inspired by Vue.js component's state management.
+
+If you're new to zustand you can read the docs [here](https://github.com/react-spring/zustand)
 
 [Live Demo](https://codesandbox.io/s/zustand-store-addons-demo-dts8y?file=/src/App.js)
 
