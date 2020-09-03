@@ -2,6 +2,8 @@
 
 Create [zustand](https://github.com/react-spring/zustand) stores with the leverage of powerful features inspired by [Vue.js](https://vuejs.org/) component's state management.
 
+[Live Demo](https://codesandbox.io/s/zustand-store-addons-demo-dts8y?file=/src/App.js)
+
 ## Included Features
 
 * **Computed properties**.
@@ -315,7 +317,7 @@ useStore.setState({
 
 ### Overwriting state
 
-Since zustand's v3.0.0 we can pass a second argument to the `set` function to replace the state instead of merging it. This can be done in the same way in this package, but if we also need to exclude the operation from logs then the use of an object is required in order to indicate both flags
+Since zustand's v3.0.0 we can pass a second argument to the `set` function to replace the state instead of merge it. This can be done in the same way in this package, but if we also need to exclude the operation from logs then the use of an object is required in order to indicate both flags.
 
 ```jsx
 

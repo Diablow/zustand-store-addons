@@ -16,7 +16,7 @@ interface IAddonsSettings {
 }
 
 interface SetStateSettings {
-  excludeInLogs?: boolean | undefined,
+  excludeFromLogs?: boolean | undefined,
   replace?: boolean | undefined
 }
 
@@ -99,18 +99,18 @@ export default function createStore <TState extends TStateRecords>(
     const [partialState, setSettings] = args;
 
     let replaceState = false;
-    let excludeInLogs = false;
+    let excludeFromLogs = false;
 
     if (typeof setSettings !== 'undefined') {
       if (typeof setSettings === 'boolean') {
         replaceState = setSettings;
       } else if (typeof setSettings === 'object') {
         replaceState = setSettings.replace || false
-        excludeInLogs = setSettings.excludeInLogs || false
+        excludeFromLogs = setSettings.excludeFromLogs || false
       }
     }
 
-    const logOperations = (!excludeInLogs ?? true) && <string>_settings.logLevel !== <string>LogLevel.None;
+    const logOperations = (!excludeFromLogs ?? true) && <string>_settings.logLevel !== <string>LogLevel.None;
 
     const currentState = _api.getState();
     const changes = typeof partialState === 'function' ? partialState(currentState) : partialState;
