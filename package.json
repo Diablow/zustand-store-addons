@@ -10,6 +10,17 @@
   "engines": {
     "node": ">=10"
   },
+  "keywords": [
+    "react",
+    "state",
+    "manager",
+    "management",
+    "store",
+    "zustand",
+    "vue",
+    "computed",
+    "watcher"
+  ],
   "scripts": {
     "start": "tsdx watch",
     "build": "tsdx build",
