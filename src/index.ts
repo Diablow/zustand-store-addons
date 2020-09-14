@@ -1,6 +1,10 @@
 import create, { State, StateSelector, EqualityChecker, PartialState, GetState, Subscribe, Destroy, StoreApi } from 'zustand';
 import shallow from 'zustand/shallow';
 import flow from 'lodash/flow';
+// @ts-ignore
+import matchAll from 'string.prototype.matchall';
+
+matchAll.shim();
 
 type TStateRecords = Record<string | number | symbol | any, any>
 
