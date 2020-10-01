@@ -208,10 +208,9 @@ export default function createStore<TState extends TStateRecords>(
       }
       computedToAdd = {
         ...computedToAdd,
-        [key]: value.apply(
-          { ..._api.getState(), ...computedToAdd },
-          { set: _api.setState, get: _api.getState }
-        ),
+        [key]: value.apply({ ..._api.getState(), ...computedToAdd }, [
+          { set: _api.setState, get: _api.getState },
+        ]),
       };
     }
     if (Object.keys(computedToAdd).length > 0) {
