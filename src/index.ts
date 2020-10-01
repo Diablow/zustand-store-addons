@@ -160,11 +160,19 @@ export default function createStore<TState extends TStateRecords>(
     )) {
       const needsRecompute = intersection(Object.keys(changes), compPropDeps);
       if (needsRecompute.length > 0) {
-        updatedComputed[compPropName] = _computed[compPropName].apply({
-          ...currentState,
-          ...changes,
-          ...updatedComputed,
-        });
+        updatedComputed[compPropName] = _computed[compPropName].apply(
+          {
+            ...currentState,
+            ...changes,
+            ...updatedComputed,
+          },
+          [
+            {
+              set: _api.setState,
+              get: _api.getState,
+            },
+          ]
+        );
       }
     }
 
