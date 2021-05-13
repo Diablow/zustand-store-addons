@@ -55,12 +55,15 @@ interface IAddons {
   settings?: IAddonsSettings;
 }
 
+
+
 function getDeps(fn: (state: State) => any) {
   const reg = new RegExp(/(?:this\.)(\w+)/g);
   const reg2 = new RegExp(/(?:this\[')(\w+)(?:'\])/g);
-  const matches = Array.from(fn.toString().matchAll(reg));
-  const matches2 = Array.from(fn.toString().matchAll(reg2));
-  return Array.from(new Set([...matches, ...matches2])).map(match => match[1]);
+  const matches = Array.from(fn.toString().matchAll(reg)).map(match => match[1]);
+  const matches2 = Array.from(fn.toString().matchAll(reg2)).map(match => match[1]);
+  const mergedMatches = Array.from(new Set([...matches, ...matches2]));
+  return mergedMatches;
 }
 
 function intersection(aArray: any[], bArray: any) {
@@ -92,6 +95,8 @@ export default function createStore<TState extends TStateRecords>(
   let _api: StoreApi<TState>;
   let _originalSetState: SetState<TState>;
   let _computed: TStateRecords = {};
+  let updatedComputed: Record<string | number | symbol, any> = {};
+  let _computedMerged: boolean = false;
   let _computedPropDependencies: TStateRecords = {};
   let _watchers: TStateRecords = {};
   let _settings: IAddonsSettings = {
@@ -121,7 +126,7 @@ export default function createStore<TState extends TStateRecords>(
     setMiddleware([args, setSettings], _originalSetState);
   }
 
-  function setMiddleware(args: any, set: any) {
+  function setMiddleware(args: any, set: any, recursiveOp: boolean = false) {
     const [partialState, setSettings] = args;
 
     let replaceState = false;
@@ -136,8 +141,8 @@ export default function createStore<TState extends TStateRecords>(
       }
     }
 
-    const logOperations =
-      (!excludeFromLogs ?? true) &&
+    let logOperations =
+      (!excludeFromLogs ?? true) && _computedMerged &&
       <string>_settings.logLevel !== <string>LogLevel.None;
 
     const currentState = _api.getState();
@@ -147,32 +152,36 @@ export default function createStore<TState extends TStateRecords>(
         : partialState;
 
     const group = `${_settings.name} state changed`;
-    logOperations && console.group(group);
-    logOperations &&
+    logOperations && !recursiveOp && console.group(group);
+    logOperations && !recursiveOp &&
       <string>_settings.logLevel === <string>LogLevel.All &&
       console.log('Previous State', currentState);
-    logOperations && console.log('Applying', changes);
 
-    let updatedComputed: Record<string | number | symbol, any> = {};
+    logOperations && !recursiveOp && console.log('Applying', changes);
 
-    for (const [compPropName, compPropDeps] of Object.entries(
-      _computedPropDependencies
-    )) {
-      const needsRecompute = intersection(Object.keys(changes), compPropDeps);
-      if (needsRecompute.length > 0) {
-        updatedComputed[compPropName] = _computed[compPropName].apply(
-          {
-            ...currentState,
-            ...changes,
-            ...updatedComputed,
-          },
-          [
+
+    updatedComputed = {};
+
+    if (!replaceState) {
+      for (const [compPropName, compPropDeps] of Object.entries(
+        _computedPropDependencies
+      )) {
+        const needsRecompute = intersection(Object.keys(changes), compPropDeps);
+        if (needsRecompute.length > 0) {
+          updatedComputed[compPropName] = _computed[compPropName].apply(
             {
-              set: _api.setState,
-              get: _api.getState,
+              ...currentState,
+              ...changes,
+              ...updatedComputed,
             },
-          ]
-        );
+            [
+              {
+                set: _api.setState,
+                get: _api.getState,
+              },
+            ]
+          );
+        }
       }
     }
 
@@ -181,6 +190,24 @@ export default function createStore<TState extends TStateRecords>(
     }
 
     const newState = { ...changes, ...updatedComputed };
+
+    // Clean computed properties and watchers if they are no longer in the state
+    if (replaceState) {
+
+      for (const [compPropName] of Object.entries(_computed)) {
+        if (!(compPropName in newState)) {
+          delete _computed[compPropName]
+          delete _computedPropDependencies[compPropName]
+        }
+      }
+
+      for (const [watcherName] of Object.entries(_watchers)) {
+        if (!(watcherName in newState)) {
+          delete _watchers[watcherName]
+        }
+      }
+    }
+
     set(newState, replaceState);
 
     for (const [propName, fn] of Object.entries(_watchers)) {
@@ -193,10 +220,15 @@ export default function createStore<TState extends TStateRecords>(
       }
     }
 
+    if (Object.keys(updatedComputed).length > 0 && !replaceState) {
+      setMiddleware([updatedComputed, setSettings], _originalSetState, true);
+    }
+
     logOperations &&
-      <string>_settings.logLevel === <string>LogLevel.All &&
-      console.log('New State', _api.getState());
-    logOperations && console.groupEnd();
+    <string>_settings.logLevel === <string>LogLevel.All && !recursiveOp &&
+    console.log('New State', _api.getState());
+
+    logOperations && !recursiveOp && console.groupEnd();
   }
 
   const middlewareFunctions = (
@@ -224,6 +256,8 @@ export default function createStore<TState extends TStateRecords>(
     if (Object.keys(computedToAdd).length > 0) {
       _api.setState(computedToAdd);
     }
+
+    _computedMerged = true;
   }
 
   function configWatchers(watchers: TStateRecords) {

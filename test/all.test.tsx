@@ -1,4 +1,4 @@
-import create from '../src';
+import create, { LogLevel } from '../src';
 import React from 'react';
 // import ReactDOM from 'react-dom';
 import { render } from '@testing-library/react';
@@ -211,7 +211,7 @@ it('uses the store with simplified fetch and watchers', async () => {
             this.set({ moreThan5: true });
           }
         },
-      },
+      }
     }
   );
 
@@ -251,7 +251,9 @@ it('uses the store with simplified fetch and watchers but replacing state from w
           return this.count * 2;
         },
         total() {
-          return this.count + this.doubleCount;
+          return this.count === undefined || this.doubleCount === undefined
+            ? 0
+            : this.count + this.doubleCount;
         },
       },
       watchers: {
@@ -272,7 +274,10 @@ it('uses the store with simplified fetch and watchers but replacing state from w
     const [count, doubleCount, total, moreThan5, inc] = useStore(
       'count, doubleCount, total, moreThan5, inc'
     );
-    React.useEffect(inc, []);
+    React.useEffect(() => {
+      console.log('last test'),
+      inc();
+    }, []);
     return (
       <div>
         <p>count: {count}</p>
