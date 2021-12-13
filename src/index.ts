@@ -210,7 +210,7 @@ export default function createStore<TState extends TStateRecords>(
 
       for (const [watcherName] of Object.entries(_watchers)) {
         if (!(watcherName in newState)) {
-          unset(_watchers, watcherName); // @ttungbmt
+          unset(_watchers, watcherName);
         }
       }
     }
