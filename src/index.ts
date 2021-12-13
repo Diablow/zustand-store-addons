@@ -12,6 +12,10 @@ import shallow from 'zustand/shallow';
 import flow from 'lodash/flow';
 // @ts-ignore
 import matchAll from 'string.prototype.matchall';
+import unset from 'lodash/unset';
+import hasIn from 'lodash/hasIn';
+import isEqual from 'lodash/isEqual';
+import _get from 'lodash/get';
 
 matchAll.shim();
 
@@ -64,6 +68,7 @@ function getDeps(fn: (state: State) => any) {
   const matches2 = Array.from(fn.toString().matchAll(reg2)).map(
     match => match[1]
   );
+  // @ts-ignore
   const mergedMatches = Array.from(new Set([...matches, ...matches2]));
   return mergedMatches;
 }
@@ -205,7 +210,7 @@ export default function createStore<TState extends TStateRecords>(
 
       for (const [watcherName] of Object.entries(_watchers)) {
         if (!(watcherName in newState)) {
-          delete _watchers[watcherName];
+          unset(_watchers, watcherName);
         }
       }
     }
@@ -213,11 +218,13 @@ export default function createStore<TState extends TStateRecords>(
     set(newState, replaceState);
 
     for (const [propName, fn] of Object.entries(_watchers)) {
-      if (Object.keys(newState).includes(propName)) {
+      let newVal = _get(newState, propName), currentVal = _get(currentState, propName)
+
+      if(hasIn(newState, propName) && !isEqual(newVal, currentVal)){
         logOperations && console.log(`Triggering watcher: ${propName}`);
         fn.apply({ set: _api.setState, get: _api.getState, api: _api }, [
-          newState[propName],
-          currentState[propName],
+          newVal,
+          currentVal
         ]);
       }
     }
