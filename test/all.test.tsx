@@ -190,7 +190,10 @@ it('uses the store with simplified fetch', async () => {
 });
 
 it('uses the store with simplified fetch and watchers', async () => {
-  const useStore = create(
+  // Force state type so that the typings are verified without adding extra test time
+  // e.g. make sure that https://github.com/Diablow/zustand-store-addons/issues/2
+  // does not reappears
+  const useStore = create<{ count: number; moreThan5: boolean }>(
     set => ({
       count: 1,
       inc: () => set(state => ({ count: state.count + 1 })),

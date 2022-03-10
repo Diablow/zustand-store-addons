@@ -2,7 +2,6 @@ import create, {
   State,
   StateSelector,
   EqualityChecker,
-  PartialState,
   GetState,
   Subscribe,
   Destroy,
@@ -36,6 +35,10 @@ interface SetStateSettings {
   excludeFromLogs?: boolean | undefined;
   replace?: boolean | undefined;
 }
+
+// PartialState has been deprecated by zustand:
+// https://github.com/pmndrs/zustand/blob/a418fd748077c453efbff2d03641ce0af780b3c7/src/vanilla.ts#L6
+type PartialState<T extends State> = Partial<T> | ((state: T) => Partial<T>);
 
 type SetState<T extends State> = (
   partial: PartialState<T>,
@@ -218,13 +221,14 @@ export default function createStore<TState extends TStateRecords>(
     set(newState, replaceState);
 
     for (const [propName, fn] of Object.entries(_watchers)) {
-      let newVal = _get(newState, propName), currentVal = _get(currentState, propName)
+      let newVal = _get(newState, propName),
+        currentVal = _get(currentState, propName);
 
-      if(hasIn(newState, propName) && !isEqual(newVal, currentVal)){
+      if (hasIn(newState, propName) && !isEqual(newVal, currentVal)) {
         logOperations && console.log(`Triggering watcher: ${propName}`);
         fn.apply({ set: _api.setState, get: _api.getState, api: _api }, [
           newVal,
-          currentVal
+          currentVal,
         ]);
       }
     }
