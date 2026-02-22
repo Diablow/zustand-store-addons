@@ -1,22 +1,17 @@
-## Zustand Store Addons for React
+# Zustand Store Addons
 
-Create zustand stores with the leverage of powerful features inspired by Vue.js component's state management.
+> Computed properties, watchers, typed selectors, middleware chaining and automatic logs for [Zustand](https://github.com/pmndrs/zustand) stores.
 
-If you're new to zustand you can read the docs [here](https://github.com/react-spring/zustand)
+## Features
 
-[Live Demo](https://codesandbox.io/s/zustand-store-addons-demo-dts8y?file=/src/App.js)
-
-## Included Features
-
-* **Computed properties**.
-
-* **Watchers**.
-
-* **Simplified fetch syntax**.
-
-* **Middleware chaining**.
-
-* **Automatic logs** for operations.
+- **Computed properties** — derived state that auto-updates when dependencies change
+- **Watchers** — callbacks triggered when specific state properties change
+- **Typed selectors** — string, array, and function selectors with full TypeScript inference
+- **Middleware chaining** — apply middleware via a flat array instead of nested wrapping
+- **Automatic logging** — configurable console logs for state changes
+- **Zero extra dependencies** — no lodash or other runtime libraries (only requires Zustand)
+- **Full TypeScript support** — JSDoc-documented API with rich IntelliSense for both TS and JS users
+- **Zustand v4 & v5 compatible** — works with `zustand >=4.5.0`
 
 ## Installation
 
@@ -24,366 +19,373 @@ If you're new to zustand you can read the docs [here](https://github.com/react-s
 npm install zustand zustand-store-addons
 ```
 
-or
+> [!NOTE]
+> When using **zustand v5**, also install `use-sync-external-store`:
+> ```bash
+> npm install use-sync-external-store
+> ```
 
-```bash
-yarn add zustand zustand-store-addons
+## Quick Start
+
+```ts
+import create from 'zustand-store-addons';
+
+interface MyStore {
+  count: number;
+  increment: () => void;
+  above20: boolean;
+  doubleCount: number;
+  total: number;
+}
+
+const useStore = create<MyStore>(
+  (set) => ({
+    count: 0,
+    increment: () => set(state => ({ count: state.count + 1 })),
+    above20: false,
+    doubleCount: 0,
+    total: 0,
+  }),
+  {
+    computed: {
+      doubleCount(this: MyStore) { return this.count * 2; },
+      total(this: MyStore) { return this.count + this.doubleCount; },
+    },
+    watchers: {
+      total(newVal: number, oldVal: number) {
+        if (newVal > 20 && oldVal <= 20) {
+          this.set({ above20: true });
+        }
+      },
+    },
+    settings: { name: 'CounterStore', logLevel: 'diff' },
+  }
+);
 ```
 
-**Note: *Requires zustand version >= 3.0.0*
+```tsx
+function Counter() {
+  // Array selector — full autocomplete per element
+  const [count, doubleCount, total] = useStore(['count', 'doubleCount', 'total']);
 
-## But... Why not a middleware?
+  // Or single-key selector — full autocomplete + typed return
+  const increment = useStore('increment');
 
-Although middleware can help you add extra functionality *it scope is limited to what is being passed to the create function and attached once the initial state setup has completed*. Some of the included features can't be possible because of this.
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <p>Count × 2: {doubleCount}</p>
+      <p>Total: {total}</p>
+      <button onClick={increment}>Increment</button>
+    </div>
+  );
+}
+```
 
 ---
 
-# Addons Object
+## Import
 
-When we setup a store using this package we can pass an object as a second parameter to the create function with the following properties: [computed](#computed-properties-addonscomputed), [watchers](#watchers-addonswatchers), [middleware](#middleware-chaining-addonsmiddleware) and [settings](#log-settings-addonssettings).
-
-```jsx
-const useStore = create((set, get) => ({
-    welcomeMessage: 'Hello there!'
-  }),
-  // Addons object
-  {
-    computed: {},
-    watchers: {},
-    middleware: [],
-    settings: {}
-  }
-)
-```
-
-If the addons object is not provided the only feature we can still use would be the [simplified fetch syntax](#simplified-fetch-syntax).
-
-# How to use it, and why use it
-
-We're going to start with a conventional zustand store
-
-```jsx
+```ts
+// Default import
 import create from 'zustand-store-addons';
 
-const useStore = create((set, get) => ({
-  count: 0,
-  increment: () => set(state => ({ count: state.count + 1 })),
-});
-
-export default AnotherCounterComponent() {
-  const count = useStore(state => state.count);
-  const increment = useStore(state => state.increment);
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <button type="button" onClick={increment}>
-        Increment
-      </button>
-    </div>
-  )
-}
+// Named import
+import { createStore } from 'zustand-store-addons';
 ```
 
-Ok, at this point we feel the need to display **count multiplied by 2** and a **total** representing the sum of both values, so we do the following:
+---
 
-```jsx
-export default AnotherCounterComponent() {
-  const count = useStore(state => state.count);
-  const increment = useStore(state => state.increment);
-  const doubleCount = count * 2; // <--
-  const total = count + doubleCount; // <--
+## Addons Object
 
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <p>Count*2: {doubleCount}</p>
-      <hr />
-      <p>Total: {total}</p>
-      <button type="button" onClick={increment}>
-        Increment
-      </button>
-    </div>
-  )
-}
-```
+The second argument to `createStore()` is an optional addons object:
 
-We are now calculating the `doubleCount` and `total` values **inside the component**.
-Everything looks good until we realize that we need to **have access to these values from other components too** –that's the whole idea of using a "global/context" state management– and they are not descendants of this component (*prop drilling* is not a practical solution).
-
-Wouldn't be great if we could calculate `doubleCount` and `total` in the store? Now we can!
-
-Let's pass an object ([addons object](#addons-object)) as a second argument to the create store function with a `computed` key in order to list our **computed properties**
-
-## Computed properties (addons.computed)
-
-```jsx
-import create from 'zustand-store-addons';
-
-const useStore = create((set, get) => ({
-  count: 0,
-  increment: () => set(state => ({ count: state.count + 1 })),
-}), {
-  computed: {
-    doubleCount: function() {
-      // `this` points to the state object
-      return this.count * 2
-    },
-    // Shorthand method definition
-    total() {
-      return this.count + this.doubleCount;
-    }
-  }
-};
-```
-
-The above will result in the following state:
-
-```jsx
-{
-  count: 0,
-  increment: function () { /* Increment fn logic */ },
-  doubleCount: 0,
-  total: 0,
-}
-```
-
-For each key contained in the computed object, a property –named after the key– will be added to the state, and the provided function will be used as the getter function.
-
-***Inside the getter functions we use the `this` keyword which points to the state, for this reason we should not use arrow functions to define them***.
-
-Now we need to update our component
-
-```jsx
-export default AnotherCounterComponent() {
-  // This is getting crowded... Is this the best way?
-  const count = useStore(state => state.count);
-  const increment = useStore(state => state.increment);
-  const doubleCount = useStore(state => state.doubleCount);
-  const total = useStore(state => state.total);
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <p>Count*2: {doubleCount}</p>
-      <hr />
-      <p>Total: {total}</p>
-      <button type="button" onClick={increment}>
-        Increment
-      </button>
-    </div>
-  )
-}
-```
-
-In the code above we are *selecting* properties from the store individually, what are our options to save space or typing fatigue 😆?
-
-Perhaps use an array:
-
-```jsx
-const [count, increment, doubleCount, total] = useStore(
-  state => [state.count, state.increment, state.doubleCount, state.total]
-)
-```
-
-If we leave the code above as it is right now with any change in the store –even not selected properties– our component will re-render in order to keep the pace. We don't want that behavior, let's add zustand's **shallow** function to prevent it:
-
-```jsx
-const [count, increment, doubleCount, total] = useStore(
-  state => [state.count, state.increment, state.doubleCount, state.total]
-, shallow)
-```
-
-Is this better? It seems repetitive. Let's take a look at a different approach **simplified fetch syntax**.
-
-## Simplified fetch syntax
-
-We can list our selection using a string separating the properties with a comma between them. It is case-sensitive, white space is ignored and uses the **shallow** function internally. This works for a single or multiple properties.
-
-```jsx
-// Single property
-const increment = useStore('increment');
-
-// Returns an array when selecting multiple properties
-const [count, increment, doubleCount, total] = useStore(
-  'count, increment, doubleCount, total'
-)
-
-// Or use template literals/strings if you need
-const times = 'double';
-const [count, increment, doubleCount, total] = useStore(
-  `count, increment, ${times}Count, total`
-)
-```
-
-So, let's go back to our example and apply this to clean our component's code a little bit.
-
-```jsx
-export default AnotherCounterComponent() {
-  const [count, increment, doubleCount, total] = useStore(
-    'count, increment, doubleCount, total'
-  )
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <p>Count x 2: {doubleCount}</p>
-      <hr />
-      <p>Total: {total}</p>
-      <button type="button" onClick={increment}>
-        Increment
-      </button>
-    </div>
-  )
-}
-```
-
-This is looking good! It's time to add logs to our store in order to see how the state is being *mutated*. We're going to use a middleware function.
-
-If we were implementing a middleware function with a standard zustand store we would need to wrap the *create* function parameters with it. If we wanted to use another one we would wrap the previous one and so on e.g., `useStore(mw2(mw1((set, get) => ({...}))))` but this is not a standard store, so we can use **middleware chaining**.
-
-## Middleware chaining (addons.middleware)
-
-Easy way to add middleware to our stores using an array. This will apply the functions using the element's order so you don't need to worry about the wrapping.
-
-```jsx
-import create from 'zustand-store-addons';
-
-const log = config => (set, get, api) => config(args => {
-  console.log("  applying", args)
-  set(args)
-  console.log("  new state", get())
-}, get, api)
-
-const useStore = create((set, get) => ({
-  count: 0,
-  increment: () => set(state => ({ count: state.count + 1 })),
-}), {
-  computed: {
-    doubleCount: function() {
-      return this.count * 2
-    },
-    total() {
-      return this.count + this.doubleCount;
-    }
-  },
-  middleware: [log] // <- This is it
-};
-
-```
-
-Great, now we're outputting the changes to the console. But we need a way to identify the logs when using multiple stores, we could modify the middleware, but... there is another way. 😎
-
-## Log settings (addons.settings)
-
-In order to turn the logs on we need to add the settings property to the addons object. In the settings object we can set the `name` for the store and `logLevel` to `'diff'` if we want to display only the changes. Or we can use `'all'` in case we want to see the previous state, the changes and the new state. The default value for `logLevel` is `'none'`.
-
-```jsx
-import create from 'zustand-store-addons';
-
-const useStore = create((set, get) => ({
-  count: 0,
-  increment: () => set(state => ({ count: state.count + 1 })),
-}), {
-  computed: {
-    doubleCount: function() {
-      return this.count * 2
-    },
-    total() {
-      return this.count + this.doubleCount;
-    }
-  },
-  settings: {
-    name: 'CounterStore',
-    logLevel: 'diff'
-  }
-};
-
-```
-
-### Frequently updated properties
-
-Sometimes there are properties that need to be updated very often and logging them constantly can be annoying and potentially fill the console view very quickly. For this cases we can pass a configuration object as a second argument to the `set` and `setState` functions to exclude the operation from logs.
-
-```jsx
-set({ tickerSeconds: 20 }, { excludeFromLogs: true });
-
-useStore.setState({
-  tickerSeconds: 20,
-  foo: 'bar'
-}, {
-  excludeFromLogs: true
-});
-
-```
-
-### Overwriting state
-
-Since zustand's v3.0.0 we can pass a second argument to the `set` function to replace the state instead of merge it. This can be done in the same way in this package, but if we also need to exclude the operation from logs then the use of an object is required in order to indicate both flags.
-
-```jsx
-
-// This will replace the state
-useStore.setState({
-  tickerSeconds: 20,
-  foo: 'bar'
-}, true)
-
-// This will replace the state and won't be shown in logs
-useStore.setState({
-  tickerSeconds: 20,
-  foo: 'bar'
-}, {
-  excludeFromLogs: true,
-  replace: true
-});
-```
-
-## Watchers (addons.watchers)
-
-This feature allow us to add callbacks directly in our store that will be triggered when a certain property change. In the watchers object we add method definitions matching the method's name to the property we want to watch. The callback will be called passing the `newValue` and `prevValue` as arguments.
-
-Let's return to the example code we've been using.
-We might want to do something when `total` goes above 20.
-
-```jsx
-import create from 'zustand-store-addons';
-
+```ts
 const useStore = create(
-  // First argument remains the same as zustand's create function
-  (set, get) => ({
+  (set, get) => ({ /* ...state... */ }),
+  {
+    computed: {},     // Computed properties
+    watchers: {},     // Watcher callbacks
+    middleware: [],   // Middleware chain
+    settings: {},     // Store name & log level
+  }
+);
+```
+
+---
+
+## Computed Properties
+
+Derived properties that auto-recalculate when their dependencies change. Use regular functions (not arrow functions) — `this` refers to the current state.
+
+```ts
+const useStore = create(
+  (set) => ({
     count: 0,
     increment: () => set(state => ({ count: state.count + 1 })),
-    above20: false, // <-- We add this property
   }),
-  // Second argument is were you put the addons
   {
     computed: {
-      doubleCount() {
-        return this.count * 2
+      doubleCount(): number {
+        return this.count * 2;
       },
-      total() {
+      total(): number {
         return this.count + this.doubleCount;
-      }
+      },
     },
-    watchers: {
-      // Will trigger every time "total" changes
-      total(newTotal, prevTotal) {
-        // `this` keyword gives us access to set, get and api.
-        if (newTotal > 20 && prevTotal <= 20) {
-          this.set({ above20: true })
-        }
-      }
-    },
-    settings: {
-      name: 'CounterStore',
-      logLevel: 'diff'
-    }
   }
-)
+);
 
+// State shape after computed merge:
+// { count: 0, increment: fn, doubleCount: 0, total: 0 }
 ```
 
-The ***total watcher*** will be trigger every time that `total` property changes and will set `above20` to `true` the first time the value is greater than 20.
+### Typed Computed Properties
 
-Inside any watcher function we get access to the `this` keywords which in this case points to an object that contains zustand's  `set` and `get` methods and `api` object.
+Computed properties can be fully typed by providing an explicit state interface to `create()` and typing the `this` context inside your computed methods:
+
+```ts
+interface CounterState {
+  count: number;
+  doubled: number;
+}
+
+const useStore = create<CounterState>(
+  () => ({ count: 3, doubled: 0 }),
+  {
+    computed: {
+      // Annotate `this` with your state interface
+      doubled(this: CounterState) {
+        return this.count * 2;
+      },
+    },
+  }
+);
+
+const state = useStore.getState();
+state.doubled  // ✅ typed as number
+state.count    // ✅ typed as number
+```
+
+---
+
+## Typed Selectors
+
+Three selector styles are available, all with TypeScript inference:
+
+### Function selector
+
+Standard zustand pattern — full type inference:
+
+```ts
+const count = useStore(s => s.count);  // number
+```
+
+### Single-key string selector
+
+Full autocomplete, typed return value:
+
+```ts
+const count = useStore('count');  // number ✅
+```
+
+### Array selector
+
+Full per-element autocomplete, returns a typed tuple:
+
+```ts
+const [count, increment] = useStore(['count', 'increment']);
+// [number, () => void] ✅
+```
+
+### Comma-separated string selector
+
+Returns a typed tuple via template literal parsing:
+
+```ts
+const [count, doubleCount, total] = useStore('count, doubleCount, total');
+// [number, number, number] ✅
+```
+
+> [!NOTE]
+> IDE autocomplete is not available mid-string after commas. Use the **array selector** for the best autocomplete experience.
+
+---
+
+## Watchers
+
+Callbacks triggered when a specific state property changes. The method name must match the property to watch. Each callback receives `(newValue, oldValue)` as arguments.
+
+Inside watchers, `this` provides `{ set, get, api }` for reading and writing state.
+
+```ts
+const useStore = create(
+  (set) => ({
+    count: 0,
+    above20: false,
+    increment: () => set(state => ({ count: state.count + 1 })),
+  }),
+  {
+    watchers: {
+      count(newValue: number, oldValue: number) {
+        console.log(`count: ${oldValue} → ${newValue}`);
+        if (newValue > 20) {
+          this.set({ above20: true });
+        }
+      },
+    },
+  }
+);
+```
+
+### Typed Watchers
+
+Use the exported `WatcherThis<TState>` type for full typing of `this` inside watchers:
+
+```ts
+import type { WatcherThis } from 'zustand-store-addons';
+
+interface MyState {
+  count: number;
+  above20: boolean;
+}
+
+// In the addons object:
+watchers: {
+  count(this: WatcherThis<MyState>, newVal: number, oldVal: number) {
+    this.set({ above20: true });   // ✅ fully typed
+    this.get().count;              // ✅ number
+  },
+}
+```
+
+---
+
+## Middleware Chaining
+
+Apply middleware via a flat array — no more nested wrapping:
+
+```ts
+const logger = (config) => (set, get, api) =>
+  config((args) => {
+    console.log('applying', args);
+    set(args);
+    console.log('new state', get());
+  }, get, api);
+
+const useStore = create(
+  (set) => ({ count: 0 }),
+  {
+    middleware: [logger],
+  }
+);
+```
+
+---
+
+## Logging
+
+Configure logging via `addons.settings`:
+
+```ts
+{
+  settings: {
+    name: 'CounterStore',   // Shown in console group headers
+    logLevel: 'diff'        // 'none' (default) | 'diff' | 'all'
+  }
+}
+```
+
+| Level | Output |
+|-------|--------|
+| `'none'` | No logging |
+| `'diff'` | Applied changes + computed updates |
+| `'all'` | Previous state, changes, computed updates, and new state |
+
+### Excluding operations from logs
+
+```ts
+// Exclude frequently-updated properties from logs
+set({ ticker: value }, { excludeFromLogs: true });
+
+// Combine with state replacement
+useStore.setState({ count: 0 }, { replace: true, excludeFromLogs: true });
+```
+
+### Replacing state
+
+```ts
+// Replace entire state (instead of merging)
+useStore.setState({ count: 0 }, true);
+
+// Or using the settings object
+useStore.setState({ count: 0 }, { replace: true });
+```
+
+---
+
+## API Reference
+
+### `createStore(stateCreator, addons?)`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `stateCreator` | `(set, get, api) => State` | State initializer (same as zustand's `create()`) |
+| `addons.computed` | `Record<string, function>` | Computed properties — `this` = current state |
+| `addons.watchers` | `Record<string, function>` | Watcher callbacks — `this` = `{ set, get, api }` |
+| `addons.middleware` | `Array<Function>` | Middleware functions applied in order |
+| `addons.settings` | `{ name?, logLevel? }` | Store name and log level |
+
+### Returned `useStore` hook
+
+| Usage | Return Type | Description |
+|---|---|---|
+| `useStore()` | `TState` | Get entire state |
+| `useStore(s => s.count)` | Inferred | Function selector |
+| `useStore('count')` | `TState['count']` | Single-key selector (full autocomplete) |
+| `useStore(['a', 'b'])` | `[TState['a'], TState['b']]` | Array selector (full autocomplete) |
+| `useStore('a, b')` | `[TState['a'], TState['b']]` | Comma-separated selector (typed tuple) |
+| `useStore.getState()` | `TState` | Read state outside React |
+| `useStore.setState(partial)` | `void` | Update state outside React |
+| `useStore.subscribe(fn)` | `() => void` | Subscribe to changes (returns unsubscribe) |
+
+### Exported Types
+
+| Type | Description |
+|---|---|
+| `SetState<T>` | The `set` function signature |
+| `SetStateAddons<T>` | Extended `set` with `SetStateSettings` |
+| `PartialState<T>` | `Partial<T> \| ((state: T) => Partial<T> \| void)` |
+| `SetStateSettings` | `{ excludeFromLogs?, replace? }` |
+| `AddonsSettings` | `{ name?, logLevel? }` |
+| `Addons` | Full addons configuration object |
+| `UseStore<T>` | The returned hook/API interface |
+| `WatcherThis<T>` | `this` context inside watchers (`{ set, get, api }`) |
+| `ComputedDef<T>` | Typed map of computed getter functions |
+| `InferComputed<T>` | Extracts computed return types into a plain object type |
+| `LogLevel` | Enum: `None`, `Diff`, `All` |
+
+---
+
+## What's New in v1.0.0
+
+- **Zustand v5 support** — compatible with both v4 (4.5+) and v5 via `createWithEqualityFn`
+- **Zero extra dependencies** — removed `lodash-es`, `string.prototype.matchall`, and all other extra runtime deps
+- **Typed computed properties** — properly type derived state by passing explicit interfaces and binding `this` context
+- **Typed selectors** — single-key, array, and comma-separated selectors with full TypeScript inference
+- **JSDoc documentation** — rich IntelliSense tooltips for all exported types and functions
+- **Immer middleware support** — `PartialState<T>` now accepts `void` returns for immer-style mutations
+- **Modern build tooling** — dual ESM/CJS output via `tsup` with TypeScript declaration files
+- **Smaller bundle** — ~8KB (down from ~25KB with lodash)
+
+## Compatibility
+
+| Dependency | Version |
+|---|---|
+| `zustand` | `>=4.5.0` |
+| `react` | `>=17` (optional) |
+| `use-sync-external-store` | `>=1.2.0` (optional, required for zustand v5) |
+
+## License
+
+MIT

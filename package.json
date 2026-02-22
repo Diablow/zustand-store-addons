@@ -1,14 +1,31 @@
 {
-  "version": "0.1.12",
+  "name": "zustand-store-addons",
+  "version": "1.0.0",
   "license": "MIT",
-  "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
+  "author": "Luis Silva",
+  "description": "Computed properties, watchers, middleware chaining and more for Zustand stores",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "src"
   ],
   "engines": {
-    "node": ">=10"
+    "node": ">=16"
   },
   "keywords": [
     "react",
@@ -17,25 +34,43 @@
     "management",
     "store",
     "zustand",
-    "vue",
     "computed",
-    "watcher"
+    "watcher",
+    "middleware"
   ],
   "scripts": {
-    "start": "tsdx watch",
-    "build": "tsdx build",
-    "test": "tsdx test --passWithNoTests",
-    "lint": "tsdx lint",
-    "prepare": "tsdx build"
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsup"
   },
   "peerDependencies": {
-    "react": ">=16",
-    "zustand": ">=3.0.0"
+    "react": ">=17",
+    "use-sync-external-store": ">=1.2.0",
+    "zustand": ">=4.5.0"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "tsdx lint"
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "use-sync-external-store": {
+      "optional": true
     }
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/use-sync-external-store": "^1.5.0",
+    "jsdom": "^25.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "zustand": "^5.0.0"
   },
   "repository": {
     "type": "git",
@@ -46,26 +81,5 @@
     "semi": true,
     "singleQuote": true,
     "trailingComma": "es5"
-  },
-  "name": "zustand-store-addons",
-  "author": "Luis Silva",
-  "module": "dist/zustand-store-addons.esm.js",
-  "devDependencies": {
-    "@testing-library/react": "^10.4.9",
-    "@types/lodash": "^4.14.161",
-    "@types/react": "^16.9.49",
-    "@types/react-dom": "^16.9.8",
-    "husky": "^4.2.5",
-    "jest-environment-jsdom-sixteen": "^1.0.3",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "tsdx": "^0.13.3",
-    "tslib": "^2.2.0",
-    "typescript": "^4.0.2",
-    "zustand": "^3.0.3"
-  },
-  "dependencies": {
-    "lodash-es": "^4.17.15",
-    "string.prototype.matchall": "^4.0.2"
   }
 }
